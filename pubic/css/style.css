@@ -1,0 +1,9 @@
+
+
+#map {
+    width: 100%;
+    min-height: 320px;
+    height: 420px;
+    border-radius: 0.75rem;
+    overflow: hidden;
+}
