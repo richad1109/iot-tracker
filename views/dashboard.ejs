@@ -1,507 +1,669 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>IoT Tracker</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+<title>IoT Tracker</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap');
 
-    <link rel="stylesheet"
-    href="https://unpkg.com/leaflet/dist/leaflet.css"/>
-
-    <style>
+*{ box-sizing:border-box; margin:0; padding:0; }
 
 body{
-    background:#0f172a;
-    font-family:'Segoe UI',sans-serif;
+  background:#0a0a0a;
+  font-family:'Share Tech Mono', monospace;
+  color:#555;
+  min-height:100vh;
+  position:relative;
+  overflow-x:hidden;
 }
 
+body::before{
+  content:'';
+  position:fixed;
+  inset:0;
+  background-image:
+    linear-gradient(#00ff410a 1px, transparent 1px),
+    linear-gradient(90deg, #00ff410a 1px, transparent 1px);
+  background-size:30px 30px;
+  pointer-events:none;
+  z-index:0;
+}
+
+.scanline{
+  position:fixed;
+  top:0; left:0; right:0;
+  height:2px;
+  background:rgba(0,255,65,0.12);
+  animation:scan 5s linear infinite;
+  z-index:9999;
+  pointer-events:none;
+}
+
+@keyframes scan{
+  0%{ top:0 }
+  100%{ top:100% }
+}
+
+/* ===== SIDEBAR ===== */
 .sidebar{
-    position:fixed;
-    left:0;
-    top:0;
-    width:260px;
-    height:100vh;
-    background:#111827;
-    padding:25px;
-    color:white;
+  position:fixed;
+  left:0; top:0;
+  width:52px;
+  height:100vh;
+  background:#0d0d0d;
+  border-right:0.5px solid #00ff4120;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  padding:16px 0;
+  gap:8px;
+  z-index:100;
 }
 
-.logo{
-    font-size:28px;
-    font-weight:bold;
-    margin-bottom:40px;
+.sidebar-logo{
+  font-size:18px;
+  color:#00ff41;
+  margin-bottom:12px;
+  text-shadow:0 0 8px #00ff4177;
 }
 
+.nav-icon{
+  width:36px; height:36px;
+  border-radius:8px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  color:#333;
+  font-size:16px;
+  cursor:pointer;
+  transition:.2s;
+  text-decoration:none;
+  border:0.5px solid transparent;
+}
+
+.nav-icon:hover, .nav-icon.active{
+  color:#00ff41;
+  border-color:#00ff4133;
+  background:#00ff410a;
+}
+
+.sidebar-footer{
+  margin-top:auto;
+  text-align:center;
+}
+
+.avatar{
+  width:34px; height:34px;
+  border-radius:50%;
+  background:#00ff4115;
+  border:0.5px solid #00ff4133;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-size:11px;
+  color:#00ff41;
+}
+
+/* ===== MAIN ===== */
 .main{
-    margin-left:280px;
-    padding:25px;
+  margin-left:52px;
+  padding:20px;
+  position:relative;
+  z-index:1;
+}
+
+/* ===== TOPBAR ===== */
+.topbar{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  margin-bottom:20px;
+  padding-bottom:16px;
+  border-bottom:0.5px solid #00ff4115;
+}
+
+.top-title{
+  font-size:16px;
+  color:#00ff41;
+  letter-spacing:3px;
+  text-shadow:0 0 8px #00ff4144;
+  animation:flicker 6s infinite;
+}
+
+@keyframes flicker{
+  0%,100%{ opacity:1 }
+  93%{ opacity:1 }
+  94%{ opacity:.6 }
+  95%{ opacity:1 }
+  97%{ opacity:.8 }
+  98%{ opacity:1 }
+}
+
+.top-sub{
+  font-size:10px;
+  color:#333;
+  letter-spacing:2px;
+  margin-top:3px;
+}
+
+.top-right{
+  display:flex;
+  align-items:center;
+  gap:12px;
+}
+
+.live-badge{
+  display:flex;
+  align-items:center;
+  gap:6px;
+  background:#00ff410a;
+  border:0.5px solid #00ff4133;
+  border-radius:4px;
+  padding:5px 12px;
+  font-size:10px;
+  color:#00ff41;
+  letter-spacing:2px;
+}
+
+.live-dot{
+  width:7px; height:7px;
+  border-radius:50%;
+  background:#00ff41;
+  box-shadow:0 0 6px #00ff41;
+  animation:pulse 1.5s infinite;
+}
+
+@keyframes pulse{
+  0%,100%{ box-shadow:0 0 4px #00ff41 }
+  50%{ box-shadow:0 0 12px #00ff41 }
+}
+
+.top-clock{
+  font-size:13px;
+  color:#00ff4177;
+  letter-spacing:2px;
+}
+
+/* ===== STAT CARDS ===== */
+.stat-grid{
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:12px;
+  margin-bottom:16px;
 }
 
 .stat-card{
-    border:none;
-    border-radius:20px;
-    color:white;
-    transition:.3s;
+  background:#0d0d0d;
+  border:0.5px solid #1a1a1a;
+  border-radius:10px;
+  padding:16px;
+  position:relative;
+  overflow:hidden;
+  transition:.2s;
 }
 
 .stat-card:hover{
-    transform:translateY(-5px);
+  border-color:#00ff4133;
 }
 
-.total{
-    background:linear-gradient(135deg,#2563eb,#1e40af);
+.stat-card::after{
+  content:'';
+  position:absolute;
+  bottom:0; left:0; right:0;
+  height:1px;
 }
 
-.online{
-    background:linear-gradient(135deg,#10b981,#059669);
+.stat-card.total::after{ background:#00b3ff; }
+.stat-card.online::after{ background:#00ff41; }
+.stat-card.offline::after{ background:#ff4141; }
+
+.stat-label{
+  font-size:9px;
+  color:#333;
+  letter-spacing:2px;
+  text-transform:uppercase;
+  margin-bottom:8px;
 }
 
-.offline{
-    background:linear-gradient(135deg,#ef4444,#dc2626);
+.stat-val{
+  font-size:36px;
+  font-weight:500;
+  letter-spacing:2px;
 }
 
-.card{
-    border:none;
-    border-radius:20px;
+.stat-card.total .stat-val{ color:#00b3ff; }
+.stat-card.online .stat-val{ color:#00ff41; }
+.stat-card.offline .stat-val{ color:#ff4141; }
+
+.stat-desc{
+  font-size:10px;
+  color:#333;
+  margin-top:4px;
 }
 
-.card-header{
-    background:white;
-    border:none;
-    font-weight:bold;
+/* ===== GRID LAYOUT ===== */
+.grid-mid{
+  display:grid;
+  grid-template-columns:1fr 1.5fr;
+  gap:12px;
+  margin-bottom:16px;
 }
 
+.grid-left{
+  display:flex;
+  flex-direction:column;
+  gap:12px;
+}
+
+/* ===== PANEL ===== */
+.panel{
+  background:#0d0d0d;
+  border:0.5px solid #1a1a1a;
+  border-radius:10px;
+  padding:16px;
+  transition:.2s;
+}
+
+.panel:hover{
+  border-color:#00ff4120;
+}
+
+.panel-title{
+  font-size:10px;
+  color:#00ff4166;
+  letter-spacing:3px;
+  text-transform:uppercase;
+  margin-bottom:14px;
+  display:flex;
+  align-items:center;
+  gap:8px;
+}
+
+.panel-title::before{
+  content:'>';
+  color:#00ff41;
+}
+
+/* ===== FORM ===== */
+.hacker-input{
+  width:100%;
+  background:#0a0a0a;
+  border:0.5px solid #1a1a1a;
+  border-radius:6px;
+  padding:10px 12px;
+  color:#00ff41;
+  font-family:'Share Tech Mono', monospace;
+  font-size:12px;
+  margin-bottom:10px;
+  outline:none;
+  transition:.2s;
+}
+
+.hacker-input::placeholder{ color:#333; }
+
+.hacker-input:focus{
+  border-color:#00ff4155;
+  box-shadow:0 0 0 2px #00ff4110;
+}
+
+.btn-hacker{
+  width:100%;
+  padding:11px;
+  background:transparent;
+  border:0.5px solid #00ff41;
+  border-radius:6px;
+  color:#00ff41;
+  font-family:'Share Tech Mono', monospace;
+  font-size:11px;
+  letter-spacing:3px;
+  text-transform:uppercase;
+  cursor:pointer;
+  transition:.3s;
+  position:relative;
+  overflow:hidden;
+}
+
+.btn-hacker::before{
+  content:'';
+  position:absolute;
+  inset:0;
+  background:#00ff41;
+  transform:translateX(-100%);
+  transition:.3s;
+  z-index:-1;
+}
+
+.btn-hacker:hover{ color:#0a0a0a; }
+.btn-hacker:hover::before{ transform:translateX(0); }
+
+/* ===== LOG ===== */
+.log-box{
+  background:#0a0a0a;
+  border:0.5px solid #1a1a1a;
+  border-radius:6px;
+  padding:10px 12px;
+  font-size:11px;
+  line-height:1.9;
+  max-height:130px;
+  overflow-y:auto;
+}
+
+.log-box::-webkit-scrollbar{ width:3px; }
+.log-box::-webkit-scrollbar-thumb{ background:#00ff4133; }
+
+.log-ok span{ color:#00ff41; }
+.log-err span{ color:#ff4141; }
+.log-warn span{ color:#ffb800; }
+.log-info span{ color:#00b3ff; }
+
+/* ===== MAP ===== */
 #map{
-    height:550px;
-    border-radius:15px;
+  width:100%;
+  min-height:320px;
+  height:280px;
+  border-radius:0.75rem;
+  overflow:hidden;
+  border:0.5px solid #00ff4120;
 }
 
-.table{
-    vertical-align:middle;
+/* ===== TABLE ===== */
+.hacker-table{
+  width:100%;
+  border-collapse:collapse;
+  font-size:11px;
 }
 
-.table tbody tr:hover{
-    background:#f8fafc;
+.hacker-table thead tr{
+  background:#111;
 }
 
-.btn{
-    border-radius:12px;
+.hacker-table th{
+  padding:10px 12px;
+  color:#333;
+  font-size:9px;
+  letter-spacing:2px;
+  text-transform:uppercase;
+  border-bottom:0.5px solid #1a1a1a;
+  font-weight:400;
 }
 
-.maps-btn{
-    display:inline-block;
-    background:#111827;
-    color:white !important;
-
-    text-decoration:none !important;
-
-    padding:8px 14px;
-    border-radius:10px;
-
-    font-size:13px;
-    font-weight:700;
-
-    transition:.3s;
+.hacker-table td{
+  padding:11px 12px;
+  border-bottom:0.5px solid #111;
+  color:#aaa;
+  transition:.2s;
 }
 
-.maps-btn:hover{
-    background:#000000;
-    color:white !important;
-
-    text-decoration:none !important;
-
-    transform:translateY(-2px);
+.hacker-table tbody tr:hover td{
+  background:#0f0f0f;
+  color:#ddd;
 }
+
+.td-id{ color:#00b3ff !important; font-weight:500; }
+.td-name{ color:#e0e0e0 !important; font-weight:500; }
+
+.badge-on{
+  background:#00ff4110;
+  color:#00ff41;
+  border:0.5px solid #00ff4133;
+  padding:3px 10px;
+  border-radius:4px;
+  font-size:10px;
+  letter-spacing:1px;
+}
+
+.badge-off{
+  background:#ff414110;
+  color:#ff4141;
+  border:0.5px solid #ff414133;
+  padding:3px 10px;
+  border-radius:4px;
+  font-size:10px;
+  letter-spacing:1px;
+}
+
+.btn-act{
+  padding:4px 10px;
+  border-radius:4px;
+  border:0.5px solid #1a1a1a;
+  background:transparent;
+  color:#333;
+  font-family:'Share Tech Mono', monospace;
+  font-size:10px;
+  cursor:pointer;
+  transition:.2s;
+  margin-right:4px;
+  text-decoration:none;
+  display:inline-block;
+}
+
+.btn-act:hover{ border-color:#00ff4133; color:#00ff41; }
+.btn-act.del:hover{ border-color:#ff414133; color:#ff4141; }
+.btn-act.track:hover{ border-color:#00b3ff33; color:#00b3ff; }
+
+/* ===== WATERMARK ===== */
 .watermark{
-    position:fixed;
-    right:20px;
-    bottom:20px;
-    z-index:9999;
-
-    background:rgba(236,72,153,0.15);
-    backdrop-filter:blur(10px);
-
-    border:1px solid rgba(236,72,153,0.4);
-
-    border-radius:18px;
-
-    padding:12px 18px;
-
-    color:#ec4899;
-
-    font-size:13px;
-    font-weight:600;
-
-    box-shadow:
-        0 0 15px rgba(236,72,153,0.3);
-
-    transition:.3s;
+  position:fixed;
+  right:16px; bottom:16px;
+  background:#00ff410a;
+  border:0.5px solid #00ff4133;
+  border-radius:8px;
+  padding:8px 14px;
+  font-size:11px;
+  color:#00ff4177;
+  letter-spacing:2px;
+  z-index:9999;
+  transition:.3s;
 }
 
 .watermark:hover{
-    transform:translateY(-5px);
-    box-shadow:
-        0 0 25px rgba(236,72,153,0.6);
+  color:#00ff41;
+  box-shadow:0 0 16px #00ff4133;
 }
 
-/* =========================
-   RESPONSIVE MOBILE
-========================= */
-
-@media (max-width: 768px){
-
-    .sidebar{
-        position:relative;
-        width:100%;
-        height:auto;
-        padding:15px;
-    }
-
-    .main{
-        margin-left:0;
-        padding:10px;
-    }
-
-    .logo{
-        font-size:22px;
-        margin-bottom:15px;
-    }
-
-    .container{
-        padding-left:0;
-        padding-right:0;
-    }
-
-    #map{
-        height:300px;
-    }
-
-    .card{
-        margin-bottom:15px;
-    }
-
-    .card-body{
-        padding:15px;
-    }
-
-    .table{
-        font-size:13px;
-    }
-
-    .btn{
-        width:100%;
-        margin-bottom:5px;
-    }
-
-    .watermark{
-        position:relative;
-        text-align:center;
-        margin-top:20px;
-        right:auto;
-        bottom:auto;
-    }
-
+/* ===== RESPONSIVE ===== */
+@media(max-width:768px){
+  .sidebar{ width:100%; height:48px; flex-direction:row; padding:0 12px; }
+  .main{ margin-left:0; margin-top:48px; padding:12px; }
+  .stat-grid{ grid-template-columns:repeat(3,1fr); }
+  .grid-mid{ grid-template-columns:1fr; }
+  .watermark{ position:relative; right:auto; bottom:auto; margin:16px; }
 }
 </style>
-
 </head>
 
-<body class="bg-light">
+<body>
+<div class="scanline"></div>
+
+<!-- SIDEBAR -->
 <div class="sidebar">
-
-<div class="logo">
-📍 IoT Tracker
+  <div class="sidebar-logo">&#8984;</div>
+  <a class="nav-icon active" href="#" title="Dashboard">&#9632;</a>
+  <a class="nav-icon" href="#" title="Devices">&#9650;</a>
+  <a class="nav-icon" href="#" title="Map">&#9670;</a>
+  <a class="nav-icon" href="#" title="Analytics">&#9676;</a>
+  <a class="nav-icon" href="#" title="Settings">&#9881;</a>
+  <div class="sidebar-footer">
+    <div class="avatar">RC</div>
+  </div>
 </div>
 
-</div>
-
+<!-- MAIN -->
 <div class="main">
 
-<div class="container mt-4">
+  <!-- TOPBAR -->
+  <div class="topbar">
+    <div>
+      <div class="top-title">&gt; IOT_TRACKER_DASHBOARD</div>
+      <div class="top-sub">NODE.JS + MONGODB ATLAS // REALTIME MONITORING</div>
+    </div>
+    <div class="top-right">
+      <div class="live-badge">
+        <div class="live-dot"></div> LIVE
+      </div>
+      <div class="top-clock" id="clock"></div>
+    </div>
+  </div>
 
-    <!-- Statistik -->
+  <!-- STATS -->
+  <div class="stat-grid">
+    <div class="stat-card total">
+      <div class="stat-label">Total Device</div>
+      <div class="stat-val"><%= total %></div>
+      <div class="stat-desc">registered in mongodb</div>
+    </div>
+    <div class="stat-card online">
+      <div class="stat-label">Online</div>
+      <div class="stat-val"><%= online %></div>
+      <div class="stat-desc">signal active</div>
+    </div>
+    <div class="stat-card offline">
+      <div class="stat-label">Offline</div>
+      <div class="stat-val"><%= offline %></div>
+      <div class="stat-desc">no response</div>
+    </div>
+  </div>
 
-    <div class="row mb-4">
+  <!-- MID GRID -->
+  <div class="grid-mid">
 
-<div class="col-md-4">
+    <!-- KIRI: FORM + LOG -->
+    <div class="grid-left">
 
-<div class="card stat-card total shadow">
+      <!-- Form -->
+      <div class="panel">
+        <div class="panel-title">Add Device</div>
+        <form action="/add-device" method="POST">
+          <input type="text" name="deviceId" class="hacker-input" placeholder="// device_id">
+          <input type="text" name="nama" class="hacker-input" placeholder="// nama_device">
+          <button type="submit" class="btn-hacker">&gt; TAMBAH DEVICE</button>
+        </form>
+      </div>
 
-<div class="card-body text-center">
-
-<h1><%= total %></h1>
-
-<p>Total Device</p>
-
-</div>
-
-</div>
-
-</div>
-
-<div class="col-md-4">
-
-<div class="card stat-card online shadow">
-
-<div class="card-body text-center">
-
-<h1><%= online %></h1>
-
-<p>Online</p>
-
-</div>
-
-</div>
-
-</div>
-
-<div class="col-md-4">
-
-<div class="card stat-card offline shadow">
-
-<div class="card-body text-center">
-
-<h1><%= offline %></h1>
-
-<p>Offline</p>
-
-</div>
-
-</div>
-
-</div>
-
-</div>
-
-    <!-- Form Tambah Device -->
-
-    <div class="card shadow mb-4">
-
-        <div class="card-header">
-            Tambah Device
+      <!-- Log -->
+      <div class="panel">
+        <div class="panel-title">System Log</div>
+        <div class="log-box">
+          <div class="log-ok"><span>[OK ]</span> MongoDB Atlas connected</div>
+          <div class="log-ok"><span>[OK ]</span> Server running on port 3000</div>
+          <div class="log-info"><span>[INF]</span> Realtime tracking active</div>
+          <div class="log-warn"><span>[WRN]</span> DEV-004 battery low</div>
+          <div class="log-err"><span>[ERR]</span> DEV-003 signal lost</div>
+          <div class="log-ok"><span>[OK ]</span> DEV-001 GPS updated</div>
         </div>
-
-        <div class="card-body">
-
-            <form action="/add-device" method="POST">
-
-                <input
-                type="text"
-                name="deviceId"
-                class="form-control mb-3"
-                placeholder="Device ID">
-
-                <input
-                type="text"
-                name="nama"
-                class="form-control mb-3"
-                placeholder="Nama Device">
-
-                <button class="btn btn-primary">
-                    Tambah Device
-                </button>
-
-            </form>
-
-        </div>
+      </div>
 
     </div>
 
-    <!-- Peta -->
-
-    <div class="card shadow mb-4">
-
-        <div class="card-header">
-            Live Tracking Map
-        </div>
-
-        <div class="card-body">
-
-            <div id="map"></div>
-
-        </div>
-
+    <!-- KANAN: MAP -->
+    <div class="panel">
+      <div class="panel-title">Live Tracking Map</div>
+      <div id="map"></div>
     </div>
 
-    <!-- Tabel Device -->
+  </div>
 
-    <div class="card shadow">
-
-        <div class="card-header">
-            Daftar Device
-        </div>
-
-        <div class="card-body">
-
-            <table class="table table-bordered">
-
-                <thead>
-                    <tr>
-                        <th>Device ID</th>
-                        <th>Nama</th>
-                        <th>Status</th>
-                        <th>Aksi</th>
-                        <th>tracker</th>
-                    </tr>
-                </thead>
-
-                <tbody>
-
-<% devices.forEach(device=>{ %>
-
-<tr>
-
-<td><%= device.deviceId %></td>
-
-<td><%= device.nama %></td>
-
-<td>
-
-<% if(device.status === "Online"){ %>
-
-<span class="badge bg-success">
-Online
-</span>
-
-<% } else { %>
-
-<span class="badge bg-danger">
-Offline
-</span>
-
-<% } %>
-
-</td>
-
-<td>
-
-<button
-class="btn btn-primary btn-sm"
-onclick="copyLink('<%= device.deviceId %>')">
-
- Copy Link
-
-</button>
-
-<a
-href="/delete-device/<%= device._id %>"
-class="btn btn-danger btn-sm"
-onclick="return confirm('Hapus device?')">
-
- Delete
-
-</a>
-
-</td>
-
-<td>
-
-<a
-href="/tracker/<%= device.deviceId %>"
-class="btn btn-success">
-
-📍 Tracker
-
-</a>
-
-</td>
-
-</tr>
-
-<% }) %>
-
-</tbody>
-
-            </table>
-
-        </div>
-
-    </div>
+  <!-- TABLE -->
+  <div class="panel">
+    <div class="panel-title">Device List</div>
+    <table class="hacker-table">
+      <thead>
+        <tr>
+          <th>Device ID</th>
+          <th>Nama</th>
+          <th>Koordinat</th>
+          <th>Status</th>
+          <th>Aksi</th>
+          <th>Tracker</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% devices.forEach(device => { %>
+        <tr>
+          <td class="td-id"><%= device.deviceId %></td>
+          <td class="td-name"><%= device.nama %></td>
+          <td>
+            <% if(device.latitude && device.longitude){ %>
+              <%= device.latitude.toFixed(4) %>, <%= device.longitude.toFixed(4) %>
+            <% } else { %>
+              —
+            <% } %>
+          </td>
+          <td>
+            <% if(device.status === "Online"){ %>
+              <span class="badge-on">ONLINE</span>
+            <% } else { %>
+              <span class="badge-off">OFFLINE</span>
+            <% } %>
+          </td>
+          <td>
+            <button class="btn-act" onclick="copyLink('<%= device.deviceId %>')">COPY</button>
+            <a href="/delete-device/<%= device._id %>" class="btn-act del" onclick="return confirm('Hapus device?')">DEL</a>
+          </td>
+          <td>
+            <a href="/tracker/<%= device.deviceId %>" class="btn-act track">TRACK</a>
+          </td>
+        </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </div>
 
 </div>
 
-<script>
-
-function copyLink(deviceId){
-
-const link =
-window.location.origin +
-"/tracker/" +
-deviceId;
-
-navigator.clipboard.writeText(link);
-
-alert("Link tracker berhasil disalin");
-
-}
-
-</script>
+<!-- WATERMARK -->
+<div class="watermark">// Richad — PBL IoT</div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-
 <script>
-document.addEventListener("DOMContentLoaded", function(){
+  // Clock
+  function tick(){
+    const el = document.getElementById('clock');
+    if(el) el.textContent = new Date().toLocaleTimeString('id-ID');
+  }
+  tick();
+  setInterval(tick, 1000);
 
-    const map = L.map("map").setView([-7.2575,112.7521],13);
+  // Map
+  document.addEventListener('DOMContentLoaded', function(){
+    const map = L.map('map').setView([-7.2575, 112.7521], 13);
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{ maxZoom:19 }).addTo(map);
 
-    L.tileLayer(
-        "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
-        {
-            maxZoom:19
-        }
-    ).addTo(map);
+    const devices = JSON.parse('<%- devicesJson %>');
 
-    const devices = JSON.parse(
-    '<%- devicesJson %>'
-);
+    devices.forEach(function(device){
+      if(device.latitude && device.longitude){
+        const icon = L.divIcon({
+          html: '<div style="width:10px;height:10px;border-radius:50%;background:' +
+            (device.status === 'Online' ? '#00ff41;box-shadow:0 0 8px #00ff41' : '#ff4141;box-shadow:0 0 8px #ff4141') +
+            ';border:2px solid #0a0a0a"></div>',
+          iconSize:[10,10],
+          iconAnchor:[5,5],
+          className:''
+        });
 
-    devices.forEach(device => {
-
-        if(device.latitude && device.longitude){
-
-            L.marker([
-                device.latitude,
-                device.longitude
-            ])
-            .addTo(map)
-            .bindPopup(
-    "<b>" + device.nama + "</b><br>" +
-    "Device : " + device.deviceId + "<br>" +
-    "Status : " + device.status + "<br><br>" +
-
-    "<a target='_blank' " +
-"href='https://www.google.com/maps?q=" +
-device.latitude + "," +
-device.longitude +
-"' class='maps-btn'>" +
-
-"📍 Buka di Google Maps" +
-
-"</a>"
-);
-
-        }
-
+        L.marker([device.latitude, device.longitude], { icon })
+          .addTo(map)
+          .bindPopup(
+            '<span style="font-family:monospace;font-size:12px;color:#00ff41">' +
+            '> ' + device.nama + '</span><br>' +
+            '<span style="font-family:monospace;font-size:11px;color:#555">' +
+            device.deviceId + ' // ' + device.status + '</span><br><br>' +
+            '<a target="_blank" style="font-family:monospace;font-size:11px;color:#00b3ff;text-decoration:none" ' +
+            'href="https://www.google.com/maps?q=' + device.latitude + ',' + device.longitude + '">' +
+            '> open google maps</a>'
+          );
+      }
     });
+  });
 
-});
+  function copyLink(deviceId){
+    const link = window.location.origin + '/tracker/' + deviceId;
+    navigator.clipboard.writeText(link);
+    alert('[OK] Link disalin: ' + link);
+  }
 </script>
-</div>
-
-<div class="watermark">
-
-<div style="font-size:18px;">
-
-</div>
-
-<div>
-<b>Richad</b>
-</div>
-
-<div style="font-size:11px;">
-PBL IoT Tracking System
-</div>
-
-</div>
 </body>
 </html>
