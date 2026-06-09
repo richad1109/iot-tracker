@@ -1,120 +1,531 @@
 <!DOCTYPE html>
 <html>
 <head>
-
 <title>GPS Tracker</title>
-
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-
+<link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
 <style>
+@import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap');
 
-body{
-    background:#0f172a;
+*, *::before, *::after { box-sizing:border-box; margin:0; padding:0; }
+
+html, body {
+  width:100%;
+  min-height:100vh;
+  background:#0a0a0a;
+  font-family:'Share Tech Mono', monospace;
+  overflow-x:hidden;
 }
 
-.card{
-    max-width:500px;
-    margin:auto;
-    margin-top:100px;
-    border-radius:20px;
+/* GRID BACKGROUND */
+body::before {
+  content:'';
+  position:fixed;
+  inset:0;
+  background-image:
+    linear-gradient(#00ff410a 1px, transparent 1px),
+    linear-gradient(90deg, #00ff410a 1px, transparent 1px);
+  background-size:30px 30px;
+  pointer-events:none;
+  z-index:0;
 }
 
+/* SCANLINE */
+.scanline {
+  position:fixed;
+  top:0; left:0; right:0;
+  height:2px;
+  background:rgba(0,255,65,0.15);
+  animation:scan 4s linear infinite;
+  z-index:999;
+  pointer-events:none;
+}
+
+@keyframes scan {
+  0%  { top:0 }
+  100%{ top:100% }
+}
+
+/* PAGE WRAPPER */
+.page {
+  position:relative;
+  z-index:1;
+  min-height:100vh;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:24px 16px;
+}
+
+/* TRACKER CARD */
+.tracker-wrapper {
+  width:100%;
+  max-width:600px;
+}
+
+/* TERMINAL HEADER */
+.terminal-header {
+  background:#0f0f0f;
+  border:1px solid #00ff4133;
+  border-bottom:none;
+  border-radius:14px 14px 0 0;
+  padding:12px 18px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+}
+
+.terminal-dots { display:flex; gap:7px; }
+
+.tdot {
+  width:12px; height:12px;
+  border-radius:50%;
+}
+
+.terminal-title {
+  font-size:12px;
+  color:#00ff4177;
+  letter-spacing:2px;
+}
+
+#clock {
+  font-size:12px;
+  color:#00ff4166;
+  letter-spacing:1px;
+  min-width:70px;
+  text-align:right;
+}
+
+/* TERMINAL BODY */
+.terminal-card {
+  background:#0d0d0d;
+  border:1px solid #00ff4133;
+  border-top:none;
+  border-radius:0 0 14px 14px;
+  padding:24px;
+  display:flex;
+  flex-direction:column;
+  gap:18px;
+}
+
+/* TITLE */
+.sys-header {
+  text-align:center;
+  padding-bottom:18px;
+  border-bottom:1px solid #00ff4115;
+}
+
+.sys-title {
+  font-size:clamp(20px, 5vw, 28px);
+  color:#00ff41;
+  letter-spacing:clamp(2px, 1vw, 6px);
+  text-shadow:0 0 14px #00ff4155;
+  animation:flicker 5s infinite;
+}
+
+@keyframes flicker {
+  0%,100%{ opacity:1 }
+  92%{ opacity:1 }
+  93%{ opacity:.65 }
+  94%{ opacity:1 }
+  96%{ opacity:.8 }
+  97%{ opacity:1 }
+}
+
+.sys-sub {
+  font-size:clamp(10px, 2.5vw, 12px);
+  color:#00ff4155;
+  letter-spacing:3px;
+  margin-top:6px;
+}
+
+/* DEVICE BOX */
+.device-box {
+  background:#0a0a0a;
+  border:1px solid #00ff4133;
+  border-radius:10px;
+  padding:14px 18px;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:10px;
+}
+
+.device-label {
+  font-size:10px;
+  color:#00ff4155;
+  letter-spacing:2px;
+  text-transform:uppercase;
+  margin-bottom:4px;
+}
+
+.device-id {
+  font-size:clamp(14px, 3.5vw, 18px);
+  color:#00ff41;
+}
+
+.status-indicator {
+  display:flex;
+  align-items:center;
+  gap:8px;
+  flex-shrink:0;
+}
+
+.status-dot {
+  width:10px; height:10px;
+  border-radius:50%;
+  background:#333;
+  flex-shrink:0;
+}
+
+.status-dot.active {
+  background:#00ff41;
+  box-shadow:0 0 8px #00ff41;
+  animation:pulse 1.5s infinite;
+}
+
+.status-dot.inactive {
+  background:#ff4141;
+  box-shadow:0 0 8px #ff4141;
+}
+
+@keyframes pulse {
+  0%,100%{ box-shadow:0 0 6px #00ff41 }
+  50%{ box-shadow:0 0 16px #00ff41 }
+}
+
+#statusText {
+  font-size:clamp(11px, 2.5vw, 13px);
+  letter-spacing:1px;
+}
+
+/* LOG BOX */
+.log-box {
+  background:#0a0a0a;
+  border:1px solid #00ff4120;
+  border-radius:10px;
+  padding:14px 16px;
+  min-height:90px;
+  max-height:150px;
+  overflow-y:auto;
+  font-size:clamp(11px, 2.5vw, 13px);
+  line-height:2;
+  color:#777;
+  scroll-behavior:smooth;
+}
+
+.log-box::-webkit-scrollbar { width:3px; }
+.log-box::-webkit-scrollbar-thumb { background:#00ff4133; border-radius:2px; }
+
+.log-line { color:#888; }
+.log-line.ok span  { color:#00ff41; }
+.log-line.err span { color:#ff4141; }
+.log-line.info span{ color:#00b3ff; }
+.log-line.warn span{ color:#ffb800; }
+
+/* COORD GRID */
+.coord-grid {
+  display:none;
+  grid-template-columns:1fr 1fr;
+  gap:10px;
+}
+
+.coord-box {
+  background:#0a0a0a;
+  border:1px solid #00ff4120;
+  border-radius:10px;
+  padding:12px 16px;
+}
+
+.coord-label {
+  font-size:9px;
+  color:#00ff4155;
+  letter-spacing:2px;
+  text-transform:uppercase;
+  margin-bottom:4px;
+}
+
+.coord-val {
+  font-size:clamp(14px, 3.5vw, 18px);
+  color:#00ff41;
+}
+
+/* MAP */
+#map {
+  width:100%;
+  height:clamp(240px, 45vw, 340px);
+  border-radius:10px;
+  overflow:hidden;
+  border:1px solid #00ff4133;
+  display:none;
+}
+
+/* BUTTON */
+.btn-track {
+  width:100%;
+  padding:clamp(13px, 3vw, 17px);
+  background:transparent;
+  border:1px solid #00ff41;
+  border-radius:10px;
+  color:#00ff41;
+  font-family:'Share Tech Mono', monospace;
+  font-size:clamp(12px, 3vw, 15px);
+  letter-spacing:3px;
+  text-transform:uppercase;
+  cursor:pointer;
+  transition:.3s;
+  position:relative;
+  overflow:hidden;
+}
+
+.btn-track::before {
+  content:'';
+  position:absolute;
+  inset:0;
+  background:#00ff41;
+  transform:translateX(-100%);
+  transition:.3s;
+  z-index:-1;
+}
+
+.btn-track:hover,
+.btn-track:active {
+  color:#0a0a0a;
+  box-shadow:0 0 24px #00ff4155;
+}
+
+.btn-track:hover::before,
+.btn-track:active::before {
+  transform:translateX(0);
+}
+
+.btn-track:disabled {
+  border-color:#00ff4133;
+  color:#00ff4133;
+  cursor:not-allowed;
+}
+
+.btn-track:disabled::before { display:none; }
+
+/* WATERMARK */
+.watermark {
+  text-align:center;
+  font-size:clamp(10px, 2.5vw, 12px);
+  color:#00ff4133;
+  letter-spacing:3px;
+  padding-top:4px;
+}
+
+/* ===== RESPONSIVE ===== */
+
+/* Tablet */
+@media (max-width: 640px) {
+  .page { padding:16px 12px; }
+  .terminal-card { padding:18px; gap:14px; }
+  .terminal-header { padding:10px 14px; }
+}
+
+/* Mobile kecil */
+@media (max-width: 400px) {
+  .page { padding:10px 8px; }
+  .terminal-card { padding:14px 12px; gap:12px; }
+  .tdot { width:10px; height:10px; }
+  .device-box { padding:12px 14px; }
+  .log-box { padding:10px 12px; }
+}
+
+/* Landscape mobile */
+@media (max-height: 500px) and (orientation: landscape) {
+  .page { align-items:flex-start; padding:10px; }
+  .sys-title { font-size:18px; }
+  .log-box { min-height:60px; max-height:100px; }
+  #map { height:200px; }
+}
 </style>
-
 </head>
-
 <body>
 
-<div class="card shadow">
+<div class="scanline"></div>
 
-<div class="card-body text-center">
+<div class="page">
+  <div class="tracker-wrapper">
 
-<h2>GPS Tracker</h2>
+    <!-- TERMINAL HEADER -->
+    <div class="terminal-header">
+      <div class="terminal-dots">
+        <div class="tdot" style="background:#ff5f57"></div>
+        <div class="tdot" style="background:#febc2e"></div>
+        <div class="tdot" style="background:#28c840"></div>
+      </div>
+      <div class="terminal-title">GPS_TRACKER.exe</div>
+      <div id="clock"></div>
+    </div>
 
-<hr>
+    <!-- TERMINAL BODY -->
+    <div class="terminal-card">
 
-<h5>
-Device : <%= deviceId %>
-</h5>
+      <!-- TITLE -->
+      <div class="sys-header">
+        <div class="sys-title">[ GPS TRACKER ]</div>
+        <div class="sys-sub">REALTIME LOCATION SYSTEM</div>
+      </div>
 
-<p id="status">
-Menunggu izin lokasi...
-</p>
+      <!-- DEVICE INFO -->
+      <div class="device-box">
+        <div>
+          <div class="device-label">Device ID</div>
+          <div class="device-id">&gt; <%= deviceId %></div>
+        </div>
+        <div class="status-indicator">
+          <div class="status-dot inactive" id="statusDot"></div>
+          <span id="statusText" style="color:#ff4141">IDLE</span>
+        </div>
+      </div>
 
-<button
-onclick="startTracking()"
-class="btn btn-success">
+      <!-- LOG -->
+      <div class="log-box" id="logBox">
+        <div class="log-line ok"><span>[SYS]</span> System initialized...</div>
+        <div class="log-line info"><span>[INF]</span> Waiting for GPS signal...</div>
+        <div class="log-line ok"><span>[DB]</span> MongoDB Atlas connected</div>
+      </div>
 
-Aktifkan Tracking
+      <!-- COORDINATES (hidden until active) -->
+      <div class="coord-grid" id="coordGrid">
+        <div class="coord-box">
+          <div class="coord-label">Latitude</div>
+          <div class="coord-val" id="latVal">—</div>
+        </div>
+        <div class="coord-box">
+          <div class="coord-label">Longitude</div>
+          <div class="coord-val" id="lngVal">—</div>
+        </div>
+      </div>
 
-</button>
+      <!-- MAP (hidden until active) -->
+      <div id="map"></div>
 
+      <!-- BUTTON -->
+      <button class="btn-track" id="trackBtn" onclick="startTracking()">
+        &gt; AKTIFKAN TRACKING
+      </button>
+
+      <!-- WATERMARK -->
+      <div class="watermark">// by Richad — PBL IoT Tracking System</div>
+
+    </div>
+  </div>
 </div>
 
-</div>
-
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
+  // Clock
+  function tick(){
+    const el = document.getElementById('clock');
+    if(el) el.textContent = new Date().toLocaleTimeString('id-ID');
+  }
+  tick();
+  setInterval(tick, 1000);
 
-function startTracking(){
+  // Log helper
+  function addLog(type, text){
+    const box = document.getElementById('logBox');
+    const d = document.createElement('div');
+    d.className = 'log-line ' + type;
+    const prefix = { ok:'[OK ]', err:'[ERR]', info:'[INF]', warn:'[WRN]' }[type] || '[LOG]';
+    d.innerHTML = '<span>' + prefix + '</span> ' + text;
+    box.appendChild(d);
+    box.scrollTop = box.scrollHeight;
+  }
 
-navigator.geolocation.watchPosition(
+  let map, marker;
 
-async function(position){
+  function initMap(lat, lng){
+    const mapEl = document.getElementById('map');
+    mapEl.style.display = 'block';
 
-const latitude =
-position.coords.latitude;
+    if(!map){
+      map = L.map('map').setView([lat, lng], 16);
+      L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom:19 }).addTo(map);
 
-const longitude =
-position.coords.longitude;
+      const icon = L.divIcon({
+        html:'<div style="width:14px;height:14px;border-radius:50%;background:#00ff41;box-shadow:0 0 10px #00ff41;border:2px solid #0a0a0a"></div>',
+        iconSize:[14,14],
+        iconAnchor:[7,7],
+        className:''
+      });
 
-document.getElementById("status")
-.innerHTML =
+      marker = L.marker([lat, lng], { icon }).addTo(map)
+        .bindPopup(
+          '<b style="font-family:monospace;color:#00ff41">&gt; <%= deviceId %></b><br>' +
+          '<span style="font-size:11px;font-family:monospace;color:#aaa">' +
+          lat.toFixed(6) + ', ' + lng.toFixed(6) + '</span>'
+        )
+        .openPopup();
 
-"🟢 Tracking Aktif Ya Nyett<br><br>" +
+      // Force map to render correctly after display:block
+      setTimeout(() => map.invalidateSize(), 100);
 
-"Latitude : " +
-latitude +
+    } else {
+      marker.setLatLng([lat, lng]);
+      map.setView([lat, lng], 16);
+    }
+  }
 
-"<br><br>Longitude : " +
-longitude;
+  function startTracking(){
+    const btn        = document.getElementById('trackBtn');
+    const dot        = document.getElementById('statusDot');
+    const statusText = document.getElementById('statusText');
 
-await fetch("/update-location",{
+    btn.disabled    = true;
+    btn.textContent = '> CONNECTING...';
+    addLog('info', 'Requesting geolocation permission...');
 
-method:"POST",
+    navigator.geolocation.watchPosition(
+      async function(position){
+        const lat = position.coords.latitude;
+        const lng = position.coords.longitude;
 
-headers:{
-"Content-Type":"application/json"
-},
+        dot.className          = 'status-dot active';
+        statusText.style.color = '#00ff41';
+        statusText.textContent = 'ACTIVE';
+        btn.textContent        = '> TRACKING AKTIF';
 
-body:JSON.stringify({
+        document.getElementById('coordGrid').style.display = 'grid';
+        document.getElementById('latVal').textContent = lat.toFixed(6);
+        document.getElementById('lngVal').textContent = lng.toFixed(6);
 
-deviceId:"<%= deviceId %>",
+        addLog('ok',  'GPS signal acquired');
+        addLog('ok',  'Lat: ' + lat.toFixed(6) + '  Lng: ' + lng.toFixed(6));
 
-latitude: latitude,
+        initMap(lat, lng);
 
-longitude: longitude
-
-})
-
-});
-
-},
-
-function(error){
-
-alert("Lokasi ditolak");
-
-},
-
-{
-enableHighAccuracy:true
-}
-
-);
-
-}
-
+        try {
+          await fetch('/update-location', {
+            method:'POST',
+            headers:{ 'Content-Type':'application/json' },
+            body: JSON.stringify({
+              deviceId : '<%= deviceId %>',
+              latitude : lat,
+              longitude: lng
+            })
+          });
+          addLog('ok', 'Data pushed to MongoDB Atlas');
+        } catch(e){
+          addLog('err', 'Failed to push data: ' + e.message);
+        }
+      },
+      function(error){
+        addLog('err', 'Geolocation denied: ' + error.message);
+        dot.className          = 'status-dot inactive';
+        statusText.style.color = '#ff4141';
+        statusText.textContent = 'ERROR';
+        btn.disabled           = false;
+        btn.textContent        = '> RETRY TRACKING';
+      },
+      { enableHighAccuracy:true }
+    );
+  }
 </script>
-
 </body>
 </html>
